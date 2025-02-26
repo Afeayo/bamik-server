@@ -1,10 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const User = require('../model/user'); 
 const axios = require('axios'); 
 const https = require("https");
+const User = require('../model/user');
 
 const router = express.Router();
 let tempUsers = {}; // Temporary store for unverified users
@@ -28,51 +27,45 @@ const transporter = nodemailer.createTransport({
 // Send OTP email
 async function sendOTPEmail(email, otp) {
     let mailOptions = {
-        from:  process.env.EMAIL_USER,
+        from: process.env.EMAIL_USER,
         to: email,
-        subject: 'Email Verification - Online Learning Platform',
-        html: `<p>Your OTP for email verification is: <strong>${otp}</strong>. Enter this OTP to proceed with payment.</p>`
+        subject: 'Bamilk Lens - Verify Your Email for Content Creation Conference',
+        html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+            <h1 style="color:rgb(13, 87, 216);"> Bamilk Lens Content Creation Conference</h1>
+            <h2>Dear Participant,</h2>
+            <h3>You're one step closer to joining the <strong>From Phone to Fame</strong> conference!</h3>
+            <h3>Your One-Time Password (OTP) for email verification is:</h3>
+            <h2 style="background-color:rgb(13, 87, 216) color: white; padding: 10px; display: inline-block; border-radius: 5px;">
+                ${otp}
+            </h2>
+            <h3>Enter this OTP on the registration page to proceed with payment.</h3>
+            <p>If you didn’t request this, please ignore this email.</p>
+            <p>For more inquiries:</p>
+            <p>📱 WhatsApp: <a href="https://wa.me/2348032597076" style="color:rgb(13, 87, 216); text-decoration: none;">+234 803 259 7076</a></p>
+            <p>📞 Call: +234 706 595 0181</p>
+            <p>See you at the conference! 🎉</p>
+        </div>
+        `
     };
     await transporter.sendMail(mailOptions);
 }
 
+const agent = new https.Agent({ rejectUnauthorized: false });
 
-const agent = new https.Agent({
-    rejectUnauthorized: false,  // Ignore SSL errors
-});
-
-
-const initiatePayment = async (req, res) => {
-    const { email } = req.body;
-
-    try {
-        const response = await axios.post(
-            "https://api.paystack.co/transaction/initialize",
-            {
-                email: email,
-                amount: 50000 * 100, // Convert to kobo
-                currency: "NGN",
-                callback_url: "http://localhost:5000/payment-success",
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-                    "Content-Type": "application/json",
-                },
-                httpsAgent: agent, // 👈 Add this line
-            }
-        );
-
-        res.json({ paymentLink: response.data.data.authorization_url });
-    } catch (error) {
-        console.error("Error initializing payment:", error);
-        res.status(500).json({ message: "Payment initialization failed" });
+// **Function to Calculate Paystack Charges**
+function calculatePaystackAmount(amount) {
+    let paystackFee = amount * 0.015; // 1.5% Paystack fee
+    if (amount > 2500) {
+        paystackFee += 100; // Additional ₦100 fee for transactions above ₦2500
     }
-};
+    if (paystackFee > 2000) {
+        paystackFee = 2000; // Paystack maximum fee
+    }
+    return Math.ceil(amount + paystackFee) * 100; // Convert to kobo
+}
 
-
-
-// Route: Initiate email verification
+// **Route: Initiate Registration**
 router.post('/register/initiate', async (req, res) => {
     const { name, email, tel } = req.body;
 
@@ -94,7 +87,7 @@ router.post('/register/initiate', async (req, res) => {
     }
 });
 
-// Route: Verify email OTP
+// **Route: Verify Email OTP**
 router.post('/register/verify-email', (req, res) => {
     const { email, otp } = req.body;
     const user = tempUsers[email];
@@ -107,10 +100,7 @@ router.post('/register/verify-email', (req, res) => {
     res.status(200).json({ message: 'Email verified. Proceed to payment.' });
 });
 
-
-
-
-// Route: Initiate Paystack Payment
+// **Route: Initiate Paystack Payment**
 router.post('/register/pay', async (req, res) => {
     const { email } = req.body;
     const user = tempUsers[email];
@@ -120,11 +110,13 @@ router.post('/register/pay', async (req, res) => {
     }
 
     try {
+        const amountInKobo = calculatePaystackAmount(50000); // Includes Paystack charges
+
         const paystackResponse = await axios.post(
             'https://api.paystack.co/transaction/initialize',
             {
                 email,
-                amount: 50000 * 100, // Convert NGN to kobo
+                amount: amountInKobo,
                 callback_url: `${process.env.BASE_URL}/register/payment-success?email=${email}`
             },
             {
@@ -139,9 +131,8 @@ router.post('/register/pay', async (req, res) => {
     }
 });
 
-// Route: Handle Payment Success
-router.get('/register/payment-success', async (req, res) => {
-    const { email } = req.query;
+router.get('/payment-success', async (req, res) => {
+    const { email, reference } = req.query;
     const user = tempUsers[email];
 
     if (!user) {
@@ -149,6 +140,16 @@ router.get('/register/payment-success', async (req, res) => {
     }
 
     try {
+        // **Verify Paystack Payment**
+        const verificationResponse = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+        });
+
+        if (verificationResponse.data.data.status !== "success") {
+            return res.status(400).json({ message: 'Payment not successful.' });
+        }
+
+        // **Save user after successful payment**
         const newUser = new User({
             name: user.name,
             email: user.email,
@@ -159,14 +160,34 @@ router.get('/register/payment-success', async (req, res) => {
         await newUser.save();
         delete tempUsers[email];
 
-        // Send confirmation email
+        // **Send Confirmation Email**
         await transporter.sendMail({
-            from:  process.env.EMAIL_USER,
+            from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Registration Successful - Online Learning Platform',
-            html: `<p>Welcome ${user.name}, your registration is successful!</p>`
+            subject: '🎉 Registration Successful - Bamilk Lens Content Creation Conference',
+            html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                <h1 style="color:rgb(0, 64, 255);"> Payment Successful!</h1>
+                <h2>Dear <strong>${user.name}</strong>,</h2>
+                <h3>We are excited to confirm your registration for the <strong>Bamilk Lens Content Creation Conference</strong>.</h3>
+                
+                <h2 style="color: rgb(0, 64, 255);"> Event Details:</h2>
+                <h3><strong>Date:</strong> 13th May 2025</h3>
+                <h3><strong>Venue:</strong> Oriental Hotel, Lagos State, Nigeria</h3>
+
+                <p>Get ready to transform your content creation skills <strong>From Phone to Fame</strong>! </p>
+
+                <p>If you have any questions, feel free to reach out:</p>
+                <p>📱 WhatsApp: <a href="https://wa.me/2348032597076" style="color: rgb(0, 64, 255); text-decoration: none;">+234 803 259 7076</a></p>
+                <p>📞 Call: +234 706 595 0181</p>
+
+                <p>We look forward to seeing you!</p>
+                <p><strong>- Bamilk Lens Team</strong></p>
+            </div>
+            `
         });
 
+        // **Redirect to Success Page**
         res.redirect(`${process.env.FRONTEND_URL}/success.html`);
     } catch (error) {
         console.error(error);
