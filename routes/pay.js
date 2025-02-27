@@ -188,7 +188,7 @@ router.get('/payment-success', async (req, res) => {
         });
 
         // **Redirect to Success Page**
-        res.redirect(`https://bamilklens.com.ng/success.html`);
+        res.redirect('/success.html');
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error completing registration.' });
