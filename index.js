@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require('path');
 const connectDB = require("./config/db");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
@@ -13,6 +14,8 @@ connectDB();
 
 const app = express();
 app.use(express.json());
+
+app.use(express.static(path.join(__dirname, 'BAMS')));
 
 // Allowed origins for CORS
 const allowedOrigins = [
