@@ -149,7 +149,7 @@ router.post('/register/pay', async (req, res) => {
             {
                 email,
                 amount: amountInKobo,
-                callback_url: `${process.env.BASE_URL}/payment-success?email=${encodeURIComponent(email)}`
+                callback_url: `${process.env.BASE_URL}/register/payment-success?email=${encodeURIComponent(email)}`
             },
             {
                 headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
@@ -196,9 +196,10 @@ router.get('/payment-success', async (req, res) => {
         // **Check if User Already Exists**
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.redirect('/success.html'); // Avoid duplicate registration
+            return res.render('success', { name: existingUser.name });
         }
 
+        
 
         // **Save User After Successful Payment**
         const newUser = new User({
@@ -216,30 +217,11 @@ router.get('/payment-success', async (req, res) => {
             from: process.env.EMAIL_USER,
             to: email,
             subject: '🎉 Registration Successful - Bamilk Lens Content Creation Conference',
-            html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                <h1 style="color:rgb(0, 64, 255);"> Payment Successful!</h1>
-                <h2>Dear <strong>${user.name}</strong>,</h2>
-                <h3>We are excited to confirm your registration for the <strong>Bamilk Lens Content Creation Conference</strong>.</h3>
-                
-                <h2 style="color: rgb(0, 64, 255);"> Event Details:</h2>
-                <h3><strong>Date:</strong> 13th May 2025</h3>
-                <h3><strong>Venue:</strong> Oriental Hotel, Lagos State, Nigeria</h3>
-
-                <p>Get ready to transform your content creation skills <strong>From Phone to Fame</strong>! </p>
-
-                <p>If you have any questions, feel free to reach out:</p>
-                <p>📱 WhatsApp: <a href="https://wa.me/2348032597076" style="color: rgb(0, 64, 255); text-decoration: none;">+234 803 259 7076</a></p>
-                <p>📞 Call: +234 706 595 0181</p>
-
-                <p>We look forward to seeing you!</p>
-                <p><strong>- Bamilk Lens Team</strong></p>
-            </div>
-            `
+            html: `<p>Hi ${user.name}, your registration was successful!</p>`
         });
 
-        // **Redirect to Success Page**
-        res.redirect('/success.html');
+        // **Render the EJS Success Page**
+        res.render('success', { name: user.name });
     } catch (error) {
         console.error('Error completing registration:', error.response?.data || error.message);
         res.status(500).json({ message: 'Error completing registration.' });
