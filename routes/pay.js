@@ -100,8 +100,6 @@ router.post('/register/verify-email', (req, res) => {
     res.status(200).json({ message: 'Email verified. Proceed to payment.' });
 });
 
-
-
 // **Route: Initiate Paystack Payment**
 router.post('/register/pay', async (req, res) => {
     const { email } = req.body;
@@ -119,7 +117,8 @@ router.post('/register/pay', async (req, res) => {
             {
                 email,
                 amount: amountInKobo,
-                callback_url: `${process.env.BASE_URL}/register/payment-success?email=${encodeURIComponent(email)}`
+                callback_url: `${process.env.BASE_URL}/payment-success?email=${encodeURIComponent(email)}`
+
             },
             {
                 headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
@@ -132,6 +131,7 @@ router.post('/register/pay', async (req, res) => {
         res.status(500).json({ message: 'Error initializing payment.' });
     }
 });
+
 
 
 router.get('/payment-success', async (req, res) => {
@@ -191,12 +191,11 @@ router.get('/payment-success', async (req, res) => {
         });
 
         // **Redirect to Success Page**
-        res.redirect('/success.html');  // Assuming success.html is inside the public folder
+        res.redirect('/success.html');
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error completing registration.' });
     }
 });
-
 
 module.exports = router;
