@@ -19,8 +19,10 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5500",
   "http://localhost:5500",
-  "https://bamilklens.com.ng/",
-  "https://bamlens-back-end.onrender.com"
+  "https://bamilklens.com.ng",
+  "https://bamlens-back-end.onrender.com",
+  "https://www.bamilklens.com.ng",
+  "https://bamilklen.onrender.com"
 ];
 
 
