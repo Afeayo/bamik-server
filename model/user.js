@@ -5,6 +5,6 @@ const userSchema = new mongoose.Schema({
     email: { type: String, unique: true },
     tel: String,
     emailVerified: Boolean
-});
+}, { timestamps: true }); 
 
 module.exports = mongoose.model('User', userSchema);
