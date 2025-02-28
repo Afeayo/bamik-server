@@ -100,39 +100,6 @@ router.post('/register/verify-email', (req, res) => {
     res.status(200).json({ message: 'Email verified. Proceed to payment.' });
 });
 
-// **Route: Initiate Paystack Payment**
-/*router.post('/register/pay', async (req, res) => {
-    const { email } = req.body;
-    const user = tempUsers[email];
-
-    if (!user || !user.emailVerified) {
-        return res.status(400).json({ message: 'Email not verified.' });
-    }
-
-    try {
-        const amountInKobo = calculatePaystackAmount(50000); // Includes Paystack charges
-
-        const paystackResponse = await axios.post(
-            'https://api.paystack.co/transaction/initialize',
-            {
-                email,
-                amount: amountInKobo,
-                callback_url: `${process.env.BASE_URL}/payment-success?email=${encodeURIComponent(email)}`
-
-            },
-            {
-                headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
-            }
-        );
-
-        res.json({ paymentLink: paystackResponse.data.data.authorization_url });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error initializing payment.' });
-    }
-});*/
-
-
 router.post('/register/pay', async (req, res) => {
     const { email } = req.body;
     const user = tempUsers[email];
@@ -149,7 +116,7 @@ router.post('/register/pay', async (req, res) => {
             {
                 email,
                 amount: amountInKobo,
-                callback_url: `${process.env.BASE_URL}/register/payment-success?email=${encodeURIComponent(email)}`
+                callback_url: `${process.env.BASE_URL.replace(/\/$/, "")}/register/payment-success?email=${encodeURIComponent(email)}`
             },
             {
                 headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
@@ -170,101 +137,6 @@ router.post('/register/pay', async (req, res) => {
 });
 
 
-
-/*
-router.get('/payment-success', async (req, res) => {
-    console.log("✅ GET /payment-success route hit!");
-
-    const { email, reference } = req.query;
-    console.log("📌 Received query params:", { email, reference });
-
-    if (!email || !reference) {
-        console.log("❌ Missing email or reference");
-        return res.status(400).json({ message: 'Invalid request. Email or reference missing.' });
-    }
-
-    try {
-        console.log("🔎 Verifying payment with Paystack...");
-
-        // **Verify Paystack Payment**
-        const verificationResponse = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
-        });
-
-        console.log("✅ Paystack Response:", verificationResponse.data);
-
-        if (verificationResponse.data.data.status !== "success") {
-            console.log("❌ Payment verification failed");
-            return res.status(400).json({ message: 'Payment not successful.' });
-        }
-
-        console.log("💾 Saving user to database...");
-        const newUser = new User({
-            name: tempUsers[email].name,
-            email: tempUsers[email].email,
-            tel: tempUsers[email].tel,
-            emailVerified: true
-        });
-
-        await newUser.save();
-        delete tempUsers[email];
-
-        console.log("✅ User saved successfully!");
-
-        // **Send Confirmation Email**
-        console.log("📧 Sending confirmation email...");
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: '🎉 Registration Successful - Bamilk Lens Content Creation Conference',
-            text: `Your payment was successful, and you are registered!`
-        });
-
-        console.log("📩 Email sent successfully!");
-
-        // **Redirect to Success Page**
-        console.log("🔄 Redirecting to success page...");
-        res.render('success', { name: user.name, email: user.email });
-
-    } catch (error) {
-        console.error("❌ Error:", error);
-        res.status(500).json({ message: 'Error completing registration.' });
-    }
-});
-
-/*
-router.get('/payment-success', async (req, res) => {
-    const { email, reference } = req.query;
-    
-    if (!email || !reference) {
-        return res.status(400).json({ message: 'Invalid request parameters.' });
-    }
-
-    try {
-        // Verify Paystack Payment
-        const verificationResponse = await axios.get(
-            `https://api.paystack.co/transaction/verify/${reference}`,
-            {
-                headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
-            }
-        );
-
-        if (verificationResponse.data.data.status !== "success") {
-            return res.status(400).json({ message: 'Payment not successful.' });
-        }
-
-        // Retrieve user details (if using tempUsers)
-        const user = tempUsers[email] || { name: "Guest", email };
-
-        // Render EJS success page
-        res.render('success', { user, reference });
-    } catch (error) {
-        console.error('Error verifying payment:', error.response?.data || error.message);
-        res.status(500).json({ message: 'Error verifying payment.' });
-    }
-});
-
-*/
 router.get('/payment-success', async (req, res) => {
     const { email, reference } = req.query;
     console.log("✅ Payment success route hit!", req.query);
