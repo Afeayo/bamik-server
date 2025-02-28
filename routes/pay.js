@@ -267,6 +267,8 @@ router.get('/payment-success', async (req, res) => {
 */
 router.get('/payment-success', async (req, res) => {
     const { email, reference } = req.query;
+    console.log("✅ Payment success route hit!", req.query);
+
     const user = tempUsers[email];
 
     if (!user) {
@@ -313,6 +315,9 @@ router.get('/payment-success', async (req, res) => {
     }
 });
 
+router.get("/test", (req, res) => {
+    res.send("Test route working!");
+});
 
 
 module.exports = router;

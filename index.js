@@ -88,6 +88,13 @@ app.use(session({
   })
 }));
 
+app._router.stack.forEach((r) => {
+  if (r.route && r.route.path) {
+      console.log("Registered Route:", r.route.path);
+  }
+});
+
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
