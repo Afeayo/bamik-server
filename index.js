@@ -5,7 +5,6 @@ const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const auth = require("./routes/auth");
 const pay = require("./routes/pay");
 //process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -100,13 +99,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 
 
-// Health Check Route
-app.get("/", (req, res) => {
-  res.send("API is running...");
-});
-
-app.use("/auth", auth);
-app.use("/register", pay);
+app.use("/", pay);
 
 // Catch-all route for non-existent endpoints
 app.use((req, res) => {
