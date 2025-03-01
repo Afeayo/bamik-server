@@ -6,7 +6,7 @@ const MongoStore = require("connect-mongo");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const pay = require("./routes/pay");
-//process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 dotenv.config();
 connectDB();

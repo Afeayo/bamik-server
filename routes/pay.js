@@ -116,7 +116,7 @@ router.post('/register/pay', async (req, res) => {
             {
                 email,
                 amount: amountInKobo,
-                callback_url: `${process.env.BASE_URL.replace(/\/$/, "")}/payment-success?email=${encodeURIComponent(email)}`
+                callback_url: `${process.env.BAS_URL.replace(/\/$/, "")}/payment-success?email=${encodeURIComponent(email)}`
             },
             {
                 headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
