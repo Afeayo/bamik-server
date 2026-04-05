@@ -6,7 +6,7 @@ const MongoStore = require("connect-mongo");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const pay = require("./routes/pay");
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+//process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 dotenv.config();
 connectDB();
@@ -22,8 +22,9 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5500",
   "http://localhost:5500",
+  "http://127.0.0.1:55032",
   "https://bamilklens.com.ng",
-  "https://bamlens-back-end.onrender.com",
+  "https://vx33eu1m54wsq5jmeedimetm.199.192.25.147.sslip.io",
   "https://www.bamilklens.com.ng",
   "https://bamilklen.onrender.com"
 ];
