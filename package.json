@@ -12,6 +12,7 @@
     "axios": "^1.7.9",
     "balanced-match": "^1.0.2",
     "base32.js": "^0.0.1",
+    "bcryptjs": "^3.0.3",
     "bn.js": "^4.12.1",
     "body-parser": "^1.20.3",
     "brace-expansion": "^1.1.11",
@@ -69,7 +70,7 @@
     "inherits": "^2.0.4",
     "ipaddr.js": "^1.9.1",
     "jake": "^10.9.2",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "jwa": "^1.4.1",
     "jws": "^3.2.2",
     "kareem": "^2.6.3",
@@ -137,7 +138,6 @@
     "webidl-conversions": "^7.0.0",
     "whatwg-url": "^14.1.1"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

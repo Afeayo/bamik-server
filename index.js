@@ -6,6 +6,8 @@ const MongoStore = require("connect-mongo");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const pay = require("./routes/pay");
+const adminRoutes = require("./routes/adminDashboardjs");
+
 //process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 dotenv.config();
@@ -101,6 +103,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 
 app.use("/", pay);
+app.use("/admin", adminRoutes);
 
 // Catch-all route for non-existent endpoints
 app.use((req, res) => {

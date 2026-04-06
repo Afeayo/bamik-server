@@ -1,0 +1,131 @@
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const Admin = require("../model/Admin");
+const adminAuth = require("../middleware/auth");
+const User = require('../model/user');
+const nodemailer = require("nodemailer");
+
+
+
+const router = express.Router();
+
+router.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(400).json({ message: "Invalid credentials" });
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+    const token = jwt.sign(
+        { id: admin._id },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
+    );
+
+    console.log("JWT:", process.env.JWT_SECRET);
+
+    res.json({ token });
+});
+
+
+router.post('/register/confirm-transfer',adminAuth ,async (req, res) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.paymentMethod = "bank";
+    user.paymentStatus = "pending";
+
+    await user.save();
+
+    res.json({ message: "Marked as pending confirmation" });
+});
+
+// Get all users
+router.get("/users",adminAuth,async (req, res) => {
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json(users);
+});
+
+router.get("/pending-transfers", async (req, res) => {
+    const users = await User.find({
+        paymentMethod: "bank",
+        paymentStatus: "pending"
+    });
+
+    res.json(users);
+});
+
+
+const transporter = nodemailer.createTransport({
+    host: 'smtp.us.appsuite.cloud',
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+router.post("/approve-payment", async (req, res) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.paymentStatus = "paid";
+    await user.save();
+
+    // ✅ Send confirmation email
+    await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "🎉 Payment Confirmed - Bamilk Lens",
+        html: `
+            <h2>Hello ${user.name},</h2>
+            <p>Your payment has been confirmed successfully.</p>
+            <p>You are now fully registered for the conference 🎉</p>
+        `
+    });
+
+    res.json({ message: "Payment approved and email sent" });
+});
+
+router.post("/reject-payment", async (req, res) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.paymentStatus = "pending"; // or "rejected"
+    await user.save();
+
+    res.json({ message: "Payment rejected" });
+});
+
+
+
+/*
+async function createAdmin() {
+    const hashedPassword = await bcrypt.hash("fayo@2023", 10);
+
+    await Admin.create({
+        email: "afeayos@gmail.com",
+        password: hashedPassword
+    });
+
+    console.log("Admin created");
+}
+
+createAdmin();
+*/
+
+
+module.exports = router;

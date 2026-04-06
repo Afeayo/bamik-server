@@ -88,7 +88,7 @@ router.post('/register/initiate', async (req, res) => {
 });
 
 // **Route: Verify Email OTP**
-router.post('/register/verify-email', (req, res) => {
+router.post('/register/verify-email', async (req, res) => {
     const { email, otp } = req.body;
     const user = tempUsers[email];
 
@@ -96,95 +96,122 @@ router.post('/register/verify-email', (req, res) => {
         return res.status(400).json({ message: 'Invalid OTP. Try again.' });
     }
 
-    user.emailVerified = true;
+    // ✅ SAVE USER HERE (IMPORTANT)
+    const newUser = new User({
+        name: user.name,
+        email: user.email,
+        tel: user.tel,
+        emailVerified: true,
+        paymentStatus: "pending",   // 👈 key
+        paymentMethod: null
+    });
+
+    await newUser.save();
+
+    delete tempUsers[email];
+
     res.status(200).json({ message: 'Email verified. Proceed to payment.' });
 });
 
+
 router.post('/register/pay', async (req, res) => {
     const { email } = req.body;
-    const user = tempUsers[email];
+
+    const user = await User.findOne({ email });
 
     if (!user || !user.emailVerified) {
         return res.status(400).json({ message: 'Email not verified.' });
     }
 
     try {
-        const amountInKobo = calculatePaystackAmount(50000); // Includes Paystack charges
+        const amountInKobo = calculatePaystackAmount(60000);
 
         const paystackResponse = await axios.post(
             'https://api.paystack.co/transaction/initialize',
             {
                 email,
                 amount: amountInKobo,
-                callback_url: `${process.env.BAS_URL.replace(/\/$/, "")}/payment-success?email=${encodeURIComponent(email)}`
+                callback_url: `${process.env.BASE_URL.replace(/\/$/, "")}/payment-success?email=${encodeURIComponent(email)}`
             },
             {
                 headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
             }
         );
 
-        console.log('Paystack Response:', paystackResponse.data);
-      if (!paystackResponse.data.status) {
+        if (!paystackResponse.data.status) {
             return res.status(500).json({ message: 'Paystack initialization failed.' });
         }
 
         res.json({ paymentLink: paystackResponse.data.data.authorization_url });
+
     } catch (error) {
-        console.error('Error initializing payment:', error.response?.data || error.message);
+        console.error(error.response?.data || error.message);
         res.status(500).json({ message: 'Error initializing payment.' });
     }
 });
 
-
-router.get('/payment-success', async (req, res) => {
+       router.get('/payment-success', async (req, res) => {
     const { email, reference } = req.query;
-    console.log("✅ Payment success route hit!", req.query);
-
-    const user = tempUsers[email];
-
-    if (!user) {
-        return res.status(400).json({ message: 'User not found or session expired.' });
-    }
 
     try {
-        const verificationResponse = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
-        });
+        const verificationResponse = await axios.get(
+            `https://api.paystack.co/transaction/verify/${reference}`,
+            {
+                headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+            }
+        );
 
         if (verificationResponse.data.data.status !== "success") {
             return res.status(400).json({ message: 'Payment not successful.' });
         }
 
-        // Save user name before deleting from tempUsers
-        const userName = user.name;
+        // ✅ FIND USER FROM DATABASE
+        const user = await User.findOne({ email });
 
-        // Save user to database
-        const newUser = new User({
-            name: user.name,
-            email: user.email,
-            tel: user.tel,
-            emailVerified: true
-        });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
 
-        await newUser.save();
-        delete tempUsers[email]; // Remove temp user AFTER saving
+        // ✅ UPDATE PAYMENT STATUS
+        user.paymentMethod = "paystack";
+        user.paymentStatus = "paid";
 
-        // Send confirmation email
+        await user.save();
+
+        // ✅ SEND EMAIL
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
-            subject: '🎉 Registration Successful - Bamilk Lens Content Creation Conference',
-            html: `<h2>Thank you, ${userName}!</h2><p>Your registration is confirmed.</p>`
+            subject: '🎉 Payment Successful - Bamilk Lens',
+            html: `<h2>Thank you, ${user.name}!</h2><p>Your payment has been confirmed.</p>`
         });
 
-        // Redirect to success page with stored name
-        res.render('success', { name: userName, email });
+        res.render('success', { name: user.name, email });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error completing registration.' });
+        res.status(500).json({ message: 'Error completing payment.' });
     }
 });
+       
+router.post('/register/confirm-transfer', async (req, res) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    // ✅ MARK AS BANK TRANSFER
+    user.paymentMethod = "bank";
+    user.paymentStatus = "pending"; // waiting for admin approval
+
+    await user.save();
+
+    res.json({ message: "Transfer marked, awaiting confirmation" });
+});
+
 
 router.get("/test", (req, res) => {
     res.send("Test route working!");
